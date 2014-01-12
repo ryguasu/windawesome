@@ -206,16 +206,16 @@ namespace Windawesome
 
 		#endregion
 
-		public Workspace(Monitor monitor, ILayout layout, IEnumerable<IBar> barsAtTop = null, IEnumerable<IBar> barsAtBottom = null,
+		public Workspace(Monitor[] monitors, int startMonitorIndex, ILayout layout, IEnumerable<IBar> barsAtTop = null, IEnumerable<IBar> barsAtBottom = null,
 			string name = null, bool showWindowsTaskbar = false, bool repositionOnSwitchedTo = false)
 		{
 			windows = new LinkedList<Window>();
 
 			this.id = ++count;
-			this.Monitor = monitor;
+			this.Monitor = monitors[startMonitorIndex];
 			this.Layout = layout;
-			this.barsAtTop = Screen.AllScreens.Select(_ => new LinkedList<IBar>()).ToArray();
-			this.barsAtBottom = Screen.AllScreens.Select(_ => new LinkedList<IBar>()).ToArray();
+			this.barsAtTop = monitors.Select(_ => new LinkedList<IBar>()).ToArray();
+			this.barsAtBottom = monitors.Select(_ => new LinkedList<IBar>()).ToArray();
 			if (barsAtTop != null)
 			{
 				barsAtTop.ForEach(bar => this.barsAtTop[bar.Monitor.monitorIndex].AddLast(bar));
@@ -452,7 +452,7 @@ namespace Windawesome
 
 		internal void ToggleWindowsTaskbarVisibility()
 		{
-			if (Monitor.screen.Primary)
+			if (Monitor.Primary)
 			{
 				ShowWindowsTaskbar = !ShowWindowsTaskbar;
 				Monitor.ShowHideWindowsTaskbar(ShowWindowsTaskbar);

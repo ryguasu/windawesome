@@ -11,7 +11,10 @@ namespace Windawesome
 	{
 		public Workspace CurrentWorkspace { get; private set; }
 
-		public readonly Monitor[] monitors;
+		public Monitor[] monitors;
+
+		public MonitorFactory monitorFactory { get; private set; }
+
 		public readonly Config config;
 
 		public delegate bool HandleMessageDelegate(ref Message m);
@@ -82,10 +85,16 @@ namespace Windawesome
 			hiddenApplications = new HashMultiSet<IntPtr>();
 			messageHandlers = new Dictionary<int, HandleMessageDelegate>(2);
 
-			monitors = Screen.AllScreens.Select((_, i) => new Monitor(i)).ToArray();
-
 			this.CreateHandle(new CreateParams { Parent = NativeMethods.HWND_MESSAGE, ClassName = "Message" });
 			HandleStatic = this.Handle;
+
+			// The monitorFactory is used in configuration files, so it must be initialized before
+			// config is loaded.
+			monitorFactory = new MonitorFactory();
+
+			// Create a default monitor setup.
+			// This may be overridden by the config file
+			monitors = MonitorFactory.CreateMonitors();
 
 			config = new Config();
 			config.LoadConfiguration(this);
@@ -99,7 +108,7 @@ namespace Windawesome
 					"you should have as many Workspaces in StartingWorkspaces as you have Monitors!");
 			}
 
-			CurrentWorkspace = config.StartingWorkspaces.First(w => w.Monitor.screen.Primary);
+			CurrentWorkspace = config.StartingWorkspaces.First(w => w.Monitor.Primary);
 
 			topmostWindows = new WindowBase[config.Workspaces.Length];
 			Workspace.WindowActivatedEvent += h => topmostWindows[CurrentWorkspace.id - 1] = CurrentWorkspace.GetWindow(h) ?? new WindowBase(h);
@@ -222,7 +231,8 @@ namespace Windawesome
 
 		private void OnDisplaySettingsChanged(object sender, EventArgs e)
 		{
-			if (Screen.AllScreens.Length != monitors.Length)
+			var knownPhysicalMonitors = monitors.Sum(m => m.PhysicalMonitorCount);
+			if (Monitor.TotalMonitorsReportedByWindows != knownPhysicalMonitors)
 			{
 				// new monitor has been attached or an old one removed
 				

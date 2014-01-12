@@ -6,15 +6,17 @@ using System.Windows.Forms;
 
 namespace Windawesome
 {
-	public class Monitor
+	/// <summary>
+	/// Represents a (logical) monitor. See also MonitorFactory.
+	/// </summary>
+	public abstract class Monitor
 	{
 		public readonly int monitorIndex;
-		public readonly IntPtr handle;
-		public readonly Screen screen;
 		public Workspace CurrentVisibleWorkspace { get; internal set; }
 		public IEnumerable<Workspace> Workspaces { get { return workspaces.Keys; } }
-		public Rectangle Bounds { get; private set; }
-		public Rectangle WorkingArea { get; private set; }
+		public Rectangle Bounds { get; protected set; }
+		public Rectangle WorkingArea { get; protected set; }
+		public abstract bool Primary { get; }
 
 		internal readonly HashSet<IntPtr> temporarilyShownWindows;
 		private readonly Dictionary<Workspace, Tuple<int, AppBarNativeWindow, AppBarNativeWindow>> workspaces;
@@ -228,12 +230,7 @@ namespace Windawesome
 		{
 			this.workspaces = new Dictionary<Workspace, Tuple<int, AppBarNativeWindow, AppBarNativeWindow>>(2);
 			this.temporarilyShownWindows = new HashSet<IntPtr>();
-
 			this.monitorIndex = monitorIndex;
-			this.screen = Screen.AllScreens[monitorIndex];
-			var rect = NativeMethods.RECT.FromRectangle(this.screen.Bounds);
-			this.handle = NativeMethods.MonitorFromRect(ref rect, NativeMethods.MFRF.MONITOR_MONITOR_DEFAULTTONULL);
-			SetBoundsAndWorkingArea();
 		}
 
 		internal void Dispose()
@@ -253,13 +250,7 @@ namespace Windawesome
 			}
 		}
 
-		internal void SetBoundsAndWorkingArea()
-		{
-			var monitorInfo = NativeMethods.MONITORINFO.Default;
-			NativeMethods.GetMonitorInfo(this.handle, ref monitorInfo);
-			Bounds = monitorInfo.rcMonitor.ToRectangle();
-			WorkingArea = monitorInfo.rcWork.ToRectangle();
-		}
+		internal abstract void SetBoundsAndWorkingArea();
 
 		internal void SetStartingWorkspace(Workspace startingWorkspace)
 		{
@@ -268,6 +259,8 @@ namespace Windawesome
 
 		internal void Initialize()
 		{
+			SetBoundsAndWorkingArea();
+
 			ShowHideAppBars(null, CurrentVisibleWorkspace);
 
 			ShowBars(CurrentVisibleWorkspace);
@@ -302,7 +295,7 @@ namespace Windawesome
 			HideBars(workspace, CurrentVisibleWorkspace);
 
 			// hides or shows the Windows taskbar
-			if (screen.Primary && workspace.ShowWindowsTaskbar != isWindowsTaskbarShown)
+			if (Primary && workspace.ShowWindowsTaskbar != isWindowsTaskbarShown)
 			{
 				ShowHideWindowsTaskbar(workspace.ShowWindowsTaskbar);
 			}
@@ -472,6 +465,205 @@ namespace Windawesome
 			{
 				showForm.SetPosition(this);
 			}
+		}
+
+		/// <summary>
+		/// Return the number of physical monitors corresponding to this Monitor
+		/// </summary>
+		/// <returns></returns>
+		internal abstract int PhysicalMonitorCount { get; }
+
+		/// <summary>
+		/// The # of physical displays, according to Windows
+		/// </summary>
+		public static int TotalMonitorsReportedByWindows
+		{
+			get { return Screen.AllScreens.Length; }
+		}
+	}
+
+	/// <summary>
+	/// A PhysicalMonitor represents an actual physical monitor. (At least it represents a single
+	/// monitor according to Windows.)
+	/// </summary>
+	public class PhysicalMonitor : Monitor
+	{
+		private readonly IntPtr handle;
+		private readonly Screen screen;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="monitorIndex"></param>
+		internal PhysicalMonitor(int monitorIndex)
+			: this(monitorIndex, monitorIndex)
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="logicalMonitorIndex">Monitor index as far as Windawesome is concerned</param>
+		/// <param name="physicalMonitorIndex">Monitor index as far as Windows is concerned</param>
+		internal PhysicalMonitor(int logicalMonitorIndex, int physicalMonitorIndex)
+			: base(logicalMonitorIndex)
+		{
+			this.screen = Screen.AllScreens[physicalMonitorIndex];
+			var rect = NativeMethods.RECT.FromRectangle(this.screen.Bounds);
+			this.handle = NativeMethods.MonitorFromRect(ref rect, NativeMethods.MFRF.MONITOR_MONITOR_DEFAULTTONULL);
+		}
+
+		public override bool Primary
+		{
+			get { return screen.Primary; }
+		}
+
+		internal override void SetBoundsAndWorkingArea()
+		{
+			var monitorInfo = NativeMethods.MONITORINFO.Default;
+			NativeMethods.GetMonitorInfo(this.handle, ref monitorInfo);
+			Bounds = monitorInfo.rcMonitor.ToRectangle();
+			WorkingArea = monitorInfo.rcWork.ToRectangle();
+		}
+
+		internal override int PhysicalMonitorCount
+		{
+			get { return 1; }
+		}
+	}
+
+	/// <summary>
+	/// <para>A CompositeMonitor represents a set of physical monitors that Windawesome will treat as if
+	/// they were a single display. Some graphics cards can support such monitor spanning natively, of
+	/// course, but many of them don't, and people don't always have a choice of graphics card. (e.g. At
+	/// work, for example.) CompositeMonitor can fake it reasonably well if the graphics card can't
+	/// do it.</para>
+	/// <para>The use case that inspired this: Say you have two 1680x1050 displays. Not that big a deal, and
+	/// perhaps you are to be pitied for not having bigger ones. But suppose you put both of the displays
+	/// side-by-side in portrait orientation, and have Windawesome treat them (and lay out your windows) as
+	/// if they were one big monitor, rather than two separate ones. Well now you have a poor man's
+	/// 2100x3360 display; it's as if you now own, say, a 38in monitor. For some tastes, this may be more
+	/// appealing than two smaller separate displays. Plus Windawesome makes it easier than normal to
+	/// work with such large displays, because you don't have to waste time moving Windows all around.</para>
+	/// </summary>
+	public class CompositeMonitor : Monitor
+	{
+		Monitor[] submonitors;
+		bool spanHorizontally; // false means vertically
+
+		public CompositeMonitor(int monitorIndex, IEnumerable<Monitor> submonitors, bool spanHorizontaly = true)
+			: base(monitorIndex)
+		{
+			this.submonitors = submonitors.ToArray();
+			this.spanHorizontally = spanHorizontaly;
+		}
+
+		public override bool Primary
+		{
+			get
+			{
+				return submonitors.Any(m => m.Primary);
+			}
+		}
+
+		internal override void SetBoundsAndWorkingArea()
+		{
+			submonitors.ForEach(m => m.SetBoundsAndWorkingArea());
+			Bounds = MakeCompositeRectangle(submonitors.Select(m => m.Bounds));
+			WorkingArea = MakeCompositeRectangle(submonitors.Select(m => m.WorkingArea));
+		}
+
+		Rectangle MakeCompositeRectangle(IEnumerable<Rectangle> submonitorRects)
+		{
+			int left, right, top, bottom;
+			if (spanHorizontally)
+			{
+				// width: span as far as possible
+				left = submonitorRects.Min(rect => rect.Left);
+				right = submonitorRects.Max(rect => rect.Right);
+
+				// height: limit to overlapping areas
+				top = submonitorRects.Max(rect => rect.Top);
+				bottom = submonitorRects.Min(rect => rect.Bottom);
+			}
+			else
+			{
+				// height: span as far as possible
+				top = submonitorRects.Min(rect => rect.Top);
+				bottom = submonitorRects.Max(rect => rect.Bottom);
+
+				// width: limit to overlapping areas
+				left = submonitorRects.Max(rect => rect.Left);
+				right = submonitorRects.Min(rect => rect.Right);
+			}
+
+			int width = right - left;
+			int height = bottom - top;
+
+			return new Rectangle(left, top, width, height);
+		}
+
+		internal override int PhysicalMonitorCount
+		{
+			get { return submonitors.Length; }
+		}
+	}
+
+	public class MonitorFactory
+	{
+		/// <summary>
+		/// Creates one Monitor for every physical display in the system
+		/// (as reported by Windows)
+		/// </summary>
+		/// <returns></returns>
+		public static Monitor[] CreateMonitors()
+		{
+			Monitor[] monitors = new Monitor[Monitor.TotalMonitorsReportedByWindows];
+			for (int i = 0; i < Monitor.TotalMonitorsReportedByWindows; i++)
+			{
+				monitors[i] = new PhysicalMonitor(i);
+			}
+
+			monitors.ForEach(m => m.SetBoundsAndWorkingArea());
+
+			return monitors;
+		}
+
+		/// <summary>
+		/// Creates a set of monitors, some of which may be physical
+		/// monitors, and some of which may be composites of several
+		/// physical monitors
+		/// </summary>
+		/// <param name="compositeMonitorDefs"></param>
+		/// <returns></returns>
+		public static Monitor[] CreateMonitors(params IList<int>[] compositeMonitorDefs)
+		{
+			int logicalIndex = 0;
+
+			Monitor[] logicalMonitors =
+				compositeMonitorDefs.Select(compositeDef =>
+				{
+					if (compositeDef.Count == 1)
+					{
+						// There isn't really such a thing as a logicalMonitor
+						// index for a submonitor, but we need one for the
+						// constructor. Passing logicalMonitor == -1.
+						//
+						// It'd probably be better to make CompositeMonitor
+						// directly use Screen objects??
+						return new PhysicalMonitor(logicalIndex++, compositeDef[0]) as Monitor;
+					}
+					else
+					{
+						var submonitors =
+							compositeDef.Select(physicalIndex => new PhysicalMonitor(-1, physicalIndex));
+						return new CompositeMonitor(logicalIndex++, submonitors) as Monitor;
+					}
+				}).ToArray();
+
+			logicalMonitors.ForEach(m => m.SetBoundsAndWorkingArea());
+
+			return logicalMonitors;
 		}
 	}
 }

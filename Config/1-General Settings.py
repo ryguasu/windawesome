@@ -24,6 +24,13 @@ workspacesWidgetForegroundColors = [Color.Yellow for i in range(0, 10)]
 workspacesWidgetForegroundColors[0] = Color.LightSeaGreen
 workspacesWidgetBackgroundColors = [Color.Black for i in range(0, 10)]
 
+# Composite monitor example
+#
+# This makes Windawesome treat monitors 0 and 1 as a single composite display,
+# while leaving monitor 2 as normal
+#
+#   windawesome.monitors = windawesome.monitorFactory.CreateMonitors([0,1], [2])
+
 config.Bars = Enumerable.ToArray[Bar]([
 	Bar(windawesome.monitors[0],
 		[
@@ -124,15 +131,15 @@ config.Bars = Enumerable.ToArray[Bar]([
 ])
 
 config.Workspaces = Enumerable.ToArray[Workspace]([
-	Workspace(windawesome.monitors[0], FloatingLayout(), [config.Bars[1]], name = 'main'),
-	Workspace(windawesome.monitors[0], FullScreenLayout(), [config.Bars[0]], name = 'web'),
-	Workspace(windawesome.monitors[0], FullScreenLayout(), [config.Bars[0]]),
-	Workspace(windawesome.monitors[0], TileLayout(masterAreaAxis = TileLayout.LayoutAxis.TopToBottom, masterAreaWindowsCount = 2, masterAreaFactor = 0.5), [config.Bars[0]], name = 'chat'),
-	Workspace(windawesome.monitors[0], FullScreenLayout(), [config.Bars[0]]),
-	Workspace(windawesome.monitors[0], FullScreenLayout(), [config.Bars[0]]),
-	Workspace(windawesome.monitors[0], FullScreenLayout(), [config.Bars[0]]),
-	Workspace(windawesome.monitors[0], FullScreenLayout(), [config.Bars[0]], name = 'mail'),
-	Workspace(windawesome.monitors[0], FullScreenLayout(), [config.Bars[0]], name = 'BC')
+	Workspace(windawesome.monitors, 0, FloatingLayout(), [config.Bars[1]], name = 'main'),
+	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]], name = 'web'),
+	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]]),
+	Workspace(windawesome.monitors, 0, TileLayout(masterAreaAxis = TileLayout.LayoutAxis.TopToBottom, masterAreaWindowsCount = 2, masterAreaFactor = 0.5), [config.Bars[0]], name = 'chat'),
+	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]]),
+	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]]),
+	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]]),
+	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]], name = 'mail'),
+	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]], name = 'BC')
 ])
 
 config.StartingWorkspaces = [config.Workspaces[0]]
