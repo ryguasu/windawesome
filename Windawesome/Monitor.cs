@@ -609,6 +609,72 @@ namespace Windawesome
 		}
 	}
 
+    public class SplitScreenMonitor : Monitor
+    {
+        Monitor parentMonitor;
+        bool leftSide;
+
+        public SplitScreenMonitor(int logicalMonitorIndex, Monitor parentMonitor, bool leftSide)
+            : base(logicalMonitorIndex)
+        {
+            this.parentMonitor = parentMonitor;
+            this.leftSide = leftSide;
+        }
+
+        // Create with a parent monitor, and a percentage of the screen to use.
+        // And horizontal vs vertical.
+        //
+        // This kind of screws up the counting of physical monitors, though.
+
+        internal override int PhysicalMonitorCount
+        {
+            // Bad
+            get { return 1; }
+        }
+
+        public override bool Primary
+        {
+            get { return parentMonitor.Primary; }
+        }
+
+        Rectangle TranslateParentRect(Rectangle parentRect)
+        {
+            int leftWidth = parentRect.Width / 2;
+            int rightWidth = parentRect.Width - leftWidth;
+            if (leftSide)
+            {
+                return new Rectangle(parentRect.Left, parentRect.Top, leftWidth, parentRect.Height);
+            }
+            else
+            {
+                return new Rectangle(leftWidth, parentRect.Top, rightWidth, parentRect.Height);
+            }
+        }
+
+        // Huh...Even this horrible time hack doesn't work to keep the righthand bar from being placed
+        // below the left.
+        internal override void SetBoundsAndWorkingArea()
+        {
+            lock (parentMonitor)
+            {
+                if (DateTime.Now.Subtract(parentUpdate).TotalSeconds > 10)
+                {
+                    parentMonitor.SetBoundsAndWorkingArea();
+                    cachedParentBounds = parentMonitor.Bounds;
+                    cachedParentWorkingArea = parentMonitor.WorkingArea;
+                    parentUpdate = DateTime.Now;
+                }
+            }
+
+            Bounds = TranslateParentRect(cachedParentBounds);
+            WorkingArea = TranslateParentRect(cachedParentWorkingArea);
+        }
+
+        static Rectangle cachedParentBounds = new Rectangle();
+        static Rectangle cachedParentWorkingArea = new Rectangle();
+        static DateTime parentUpdate = DateTime.MinValue;
+    }
+
 	public class MonitorFactory
 	{
 		/// <summary>

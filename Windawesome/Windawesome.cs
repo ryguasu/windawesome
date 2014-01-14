@@ -96,8 +96,17 @@ namespace Windawesome
 			// This may be overridden by the config file
 			monitors = MonitorFactory.CreateMonitors();
 
+            // FOO FOO FOO FOO
+            monitors = new Monitor[2];
+            var physical = new PhysicalMonitor(0);
+            monitors[0] = new SplitScreenMonitor(0, physical, true);
+            monitors[1] = new SplitScreenMonitor(1, physical, false);
+            monitors.ForEach(m => m.SetBoundsAndWorkingArea());
+
 			config = new Config();
 			config.LoadConfiguration(this);
+
+
 
 			var startingWorkspacesCount = config.StartingWorkspaces.Count();
 			var distinctStartingWorkspaceMonitorsCount = config.StartingWorkspaces.Select(w => w.Monitor).Distinct().Count();

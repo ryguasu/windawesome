@@ -127,22 +127,54 @@ config.Bars = Enumerable.ToArray[Bar]([
 
 		backgroundColor = Color.Black,
 		font = Font("Consolas", 11)
+	),
+	Bar(windawesome.monitors[1],
+		[
+			WorkspacesWidget(
+				normalForegroundColor = workspacesWidgetForegroundColors,
+				normalBackgroundColor = workspacesWidgetBackgroundColors,
+				highlightedForegroundColor = Color.DarkOrange,
+				highlightedBackgroundColor = Color.Black,
+				highlightedInactiveForegroundColor = Color.LightSeaGreen,
+				highlightedInactiveBackgroundColor = Color.Black,
+				flashingForegroundColor = Color.Black
+			),
+			LayoutWidget(
+				foregroundColor = Color.Gold,
+				backgroundColor = Color.Black,
+				onClick = onLayoutLabelClick
+			)
+		],
+
+		[
+		],
+
+		[
+		],
+
+		backgroundColor = Color.Black,
+		font = Font("Consolas", 11)
 	)
+
 ])
 
 config.Workspaces = Enumerable.ToArray[Workspace]([
 	Workspace(windawesome.monitors, 0, FloatingLayout(), [config.Bars[1]], name = 'main'),
-	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]], name = 'web'),
-	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]]),
-	Workspace(windawesome.monitors, 0, TileLayout(masterAreaAxis = TileLayout.LayoutAxis.TopToBottom, masterAreaWindowsCount = 2, masterAreaFactor = 0.5), [config.Bars[0]], name = 'chat'),
-	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]]),
-	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]]),
-	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]]),
-	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]], name = 'mail'),
-	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]], name = 'BC')
+	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[1]], name = 'web'),
+#	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]]),
+#	Workspace(windawesome.monitors, 0, TileLayout(masterAreaAxis = TileLayout.LayoutAxis.TopToBottom, masterAreaWindowsCount = 2, masterAreaFactor = 0.5), [config.Bars[0]], name = 'chat'),
+#	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]]),
+#	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]]),
+#	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]]),
+#	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]], name = 'mail'),
+#	Workspace(windawesome.monitors, 0, FullScreenLayout(), [config.Bars[0]], name = 'BC'),
+#	Workspace(windawesome.monitors, 1, FloatingLayout(), [config.Bars[2]], name = 'xxx'),
+#	Workspace(windawesome.monitors, 1, FullScreenLayout(), [config.Bars[2]], name = 'yyy'),
+	Workspace(windawesome.monitors, 1, FloatingLayout(), [], name = 'xxx'),
+	Workspace(windawesome.monitors, 1, FullScreenLayout(), [], name = 'yyy'),
 ])
 
-config.StartingWorkspaces = [config.Workspaces[0]]
+config.StartingWorkspaces = [config.Workspaces[0], config.Workspaces[2]]
 
 config.Plugins = [
 	#LoggerPlugin(logWorkspaceSwitching = True, logWindowMinimization = True, logWindowRestoration = True,
